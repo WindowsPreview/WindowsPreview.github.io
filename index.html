@@ -1,20 +1,76 @@
-<p>Hello </p>
-<p>我是张三，这是我的个人网站。</p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>
-<p>分享，自由</p>
-
-<ul>
-</ul>
+using System;
+using System.ComponentModel;
+using System.IO;
+using System.Net;
+using System.Net.Http;
+using System.Text.RegularExpressions;
+using System.Windows.Forms;
+using Newtonsoft.Json;
+ 
+namespace DouYinDownLoader
+{
+    public partial class Form1 : Form
+    {
+        private static HttpClient httpClient;
+ 
+        public Form1()
+        {
+            InitializeComponent();
+ 
+            HttpClientHandler handler = new HttpClientHandler();
+            handler.UseCookies = false;
+            httpClient = new HttpClient(handler);
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36");
+        }
+ 
+        private async void button1_ClickAsync(object sender, EventArgs e)
+        {
+            var url = textBox1.Text.Trim();
+            if (string.IsNullOrEmpty(url))
+            {
+                MessageBox.Show("网址不能为空");
+                return;
+            }
+            var html = await httpClient.GetStringAsync(url);
+            var match = Regex.Match(html, "playAddr: \"(.+?)\"");
+            if (match.Success)
+            {
+                var videoUrl = match.Groups[1].Value.Replace("playwm", "play");
+                var saveDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "videos");
+                var saveFile = Path.Combine(saveDir, $"{DateTime.Now:yyyyMMddhhmmss}.mp4");
+                if (!Directory.Exists(saveDir))
+                {
+                    Directory.CreateDirectory(saveDir);
+                }
+                if (!File.Exists(saveFile))
+                {
+                    var downLoader = new WebClient();
+                    downLoader.Headers.Add("User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1");
+                    downLoader.DownloadFileAsync(new Uri(videoUrl), saveFile);
+                    downLoader.DownloadFileCompleted += DownLoader_DownloadFileCompleted;
+                    downLoader.DownloadProgressChanged += DownLoader_DownloadProgressChanged;
+                }
+                else
+                {
+                    label1.Text = "文件已存在，无需重复下载！";
+                }
+ 
+            }
+            else
+            {
+                MessageBox.Show("未找到视频！");
+            }
+        }
+ 
+        private void DownLoader_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+        {
+            label1.Text = $"下载中 {e.TotalBytesToReceive / 1024}kb - {e.BytesReceived / 1024}kb";
+            progressBar1.Value = e.ProgressPercentage;
+        }
+ 
+        private void DownLoader_DownloadFileCompleted(object sender, AsyncCompletedEventArgs e)
+        {
+            label1.Text = "下载完成";
+        }
+    }
+}
